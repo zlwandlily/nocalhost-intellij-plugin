@@ -40,6 +40,7 @@ import javax.swing.tree.TreeSelectionModel;
 
 import dev.nocalhost.plugin.intellij.api.data.Application;
 import dev.nocalhost.plugin.intellij.api.data.DevSpace;
+import dev.nocalhost.plugin.intellij.api.data.ServiceAccount;
 import dev.nocalhost.plugin.intellij.commands.KubectlCommand;
 import dev.nocalhost.plugin.intellij.commands.NhctlCommand;
 import dev.nocalhost.plugin.intellij.commands.data.AliveDeployment;
@@ -63,6 +64,7 @@ import dev.nocalhost.plugin.intellij.ui.tree.node.DevSpaceNode;
 import dev.nocalhost.plugin.intellij.ui.tree.node.ResourceGroupNode;
 import dev.nocalhost.plugin.intellij.ui.tree.node.ResourceNode;
 import dev.nocalhost.plugin.intellij.ui.tree.node.ResourceTypeNode;
+import dev.nocalhost.plugin.intellij.ui.tree.node.ServiceAccountNode;
 
 import static dev.nocalhost.plugin.intellij.utils.Constants.DEFAULT_APPLICATION_NAME;
 import static dev.nocalhost.plugin.intellij.utils.Constants.HELM_ANNOTATION_NAME;
@@ -146,9 +148,9 @@ public class NocalhostTree extends Tree implements Disposable {
             @Override
             public void treeExpanded(TreeExpansionEvent event) {
                 Object node = event.getPath().getLastPathComponent();
-                if (node instanceof DevSpaceNode) {
-                    DevSpaceNode devSpaceNode = (DevSpaceNode) node;
-                    devSpaceNode.setExpanded(true);
+                if (node instanceof ServiceAccountNode) {
+                    ServiceAccountNode serviceAccountNode = (ServiceAccountNode) node;
+                    serviceAccountNode.setExpanded(false);
                     return;
                 }
                 if (node instanceof ApplicationNode) {
@@ -189,9 +191,9 @@ public class NocalhostTree extends Tree implements Disposable {
             @Override
             public void treeCollapsed(TreeExpansionEvent event) {
                 Object node = event.getPath().getLastPathComponent();
-                if (node instanceof DevSpaceNode) {
-                    DevSpaceNode devSpaceNode = (DevSpaceNode) node;
-                    devSpaceNode.setExpanded(false);
+                if (node instanceof ServiceAccountNode) {
+                    ServiceAccountNode serviceAccountNode = (ServiceAccountNode) node;
+                    serviceAccountNode.setExpanded(false);
                     return;
                 }
                 if (node instanceof ApplicationNode) {
@@ -224,11 +226,11 @@ public class NocalhostTree extends Tree implements Disposable {
         ).action();
     }
 
-    private void updateTree(List<DevSpace> devSpaces,
+    private void updateTree(List<ServiceAccount> serviceAccounts,
                             List<Application> applications,
                             List<NhctlListApplication> nhctlListApplications) {
         try {
-            updateDevSpaces(devSpaces, applications, nhctlListApplications);
+            updateDevSpaces(serviceAccounts, applications, nhctlListApplications);
         } catch (InterruptedException | NocalhostExecuteCmdException | IOException e) {
             LOG.error(e);
             if (StringUtils.contains(e.getMessage(), "No such file or directory")) {
@@ -242,7 +244,7 @@ public class NocalhostTree extends Tree implements Disposable {
         }
     }
 
-    private void updateDevSpaces(List<DevSpace> devSpaces, List<Application> applications, List<NhctlListApplication> nhctlListApplications) throws InterruptedException, NocalhostExecuteCmdException, IOException {
+    private void updateDevSpaces(List<ServiceAccount> serviceAccounts, List<Application> applications, List<NhctlListApplication> nhctlListApplications) throws InterruptedException, NocalhostExecuteCmdException, IOException {
         boolean needReload = false;
 
         if (model.getChild(root, 0) instanceof LoadingNode) {
@@ -253,44 +255,45 @@ public class NocalhostTree extends Tree implements Disposable {
         }
 
         for (int i = model.getChildCount(root) - 1; i >= 1; i--) {
-            DevSpaceNode devSpaceNode = (DevSpaceNode) model.getChild(root, i);
-            final Optional<DevSpace> devSpaceOptional = devSpaces.stream().filter(devSpace -> devSpace.getId() == devSpaceNode.getDevSpace().getId()).findFirst();
-            boolean toBeRemoved = devSpaceOptional.isEmpty();
+            ServiceAccountNode serviceAccountNode = (ServiceAccountNode) model.getChild(root, i);
+            final Optional<ServiceAccount> serviceAccountOptional = serviceAccounts.stream().filter(sa -> sa.getClusterId() == serviceAccountNode.getServiceAccount().getClusterId()).findFirst();
+            boolean toBeRemoved = serviceAccountOptional.isEmpty();
 
             if (toBeRemoved) {
-                model.removeNodeFromParent(devSpaceNode);
+                model.removeNodeFromParent(serviceAccountNode);
                 needReload = true;
             }
         }
 
-        for (int i = 0; i < devSpaces.size(); i++) {
-            DevSpace devSpace = devSpaces.get(i);
-            final Optional<NhctlListApplication> nhctlListApplicationOptional = nhctlListApplications.stream().filter(a -> StringUtils.equals(a.getNamespace(), devSpace.getNamespace())).findFirst();
-
+        for (int i = 0; i < serviceAccounts.size(); i++) {
+            ServiceAccount serviceAccount = serviceAccounts.get(i);
+            final Optional<NhctlListApplication> nhctlListApplicationOptional = nhctlListApplications
+                    .stream()
+                    .filter(a -> StringUtils.equals(a.getNamespace(), devSpace.getNamespace())).findFirst();
 
             if (model.getChildCount(root) <= i + 1) {
-                model.insertNodeInto(createDevSpaceNode(devSpace, applications, nhctlListApplicationOptional), root, model.getChildCount(root));
+                model.insertNodeInto(createServiceAccountNode(serviceAccount, applications, nhctlListApplicationOptional), root, model.getChildCount(root));
                 needReload = true;
                 continue;
             }
 
-            DevSpaceNode devSpaceNode = (DevSpaceNode) model.getChild(root, i + 1);
+            ServiceAccountNode serviceAccountNode = (ServiceAccountNode) model.getChild(root, i + 1);
 
-            if (devSpaceNode.getDevSpace().getId() != devSpace.getId()) {
-                model.insertNodeInto(createDevSpaceNode(devSpace, applications, nhctlListApplicationOptional), root, i + 1);
+            if (serviceAccountNode.getServiceAccount().getClusterId() != serviceAccount.getClusterId()) {
+                model.insertNodeInto(createServiceAccountNode(serviceAccount, applications, nhctlListApplicationOptional), root, i + 1);
                 continue;
             }
 
-            if (devSpaceNode.getDevSpace().getId() == devSpace.getId()) {
+            if (serviceAccountNode.getServiceAccount().getClusterId() == serviceAccount.getClusterId()) {
                 if (nhctlListApplicationOptional.isPresent()) {
                     final List<NhctlListApplication.Application> collect = Arrays.stream(nhctlListApplicationOptional.get().getApplication()).filter(a -> !DEFAULT_APPLICATION_NAME.equals(a.getName())).collect(Collectors.toList());
-                    if (collect.size() + 1 != devSpaceNode.getChildCount()) {
-                        model.removeNodeFromParent(devSpaceNode);
-                        model.insertNodeInto(createDevSpaceNode(devSpace, applications, nhctlListApplicationOptional), root, i + 1);
+                    if (collect.size() + 1 != serviceAccountNode.getChildCount()) {
+                        model.removeNodeFromParent(serviceAccountNode);
+                        model.insertNodeInto(createServiceAccountNode(serviceAccount, applications, nhctlListApplicationOptional), root, i + 1);
                     }
                 } else {
-                    model.removeNodeFromParent(devSpaceNode);
-                    model.insertNodeInto(createDevSpaceNode(devSpace, applications, Optional.empty()), root, i + 1);
+                    model.removeNodeFromParent(serviceAccountNode);
+                    model.insertNodeInto(createServiceAccountNode(serviceAccount, applications, Optional.empty()), root, i + 1);
                 }
             }
 

@@ -10,6 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
+@Deprecated
 public class DevSpaceNode extends DefaultMutableTreeNode {
     private DevSpace devSpace;
     private boolean expanded;

@@ -6,15 +6,20 @@ import lombok.Data;
 
 @Data
 public class ServiceAccount {
+    @SerializedName("cluster_id")
+    private int clusterId;
     @SerializedName("kubeconfig")
     private String kubeConfig;
     @SerializedName("storage_class")
     private String storageClass;
     private boolean privilege;
-    private Namespace[] ns;
+    @SerializedName("namespace_packs")
+    private Namespace[] namespaces;
 
     @Data
     public static class Namespace {
+        @SerializedName("space_id")
+        private Integer spaceId;
         private String namespace;
         @SerializedName("spacename")
         private String spaceName;

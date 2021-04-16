@@ -12,12 +12,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import dev.nocalhost.plugin.intellij.api.NocalhostApi;
 import dev.nocalhost.plugin.intellij.api.data.Application;
-import dev.nocalhost.plugin.intellij.api.data.DevSpace;
+import dev.nocalhost.plugin.intellij.api.data.ServiceAccount;
 import dev.nocalhost.plugin.intellij.commands.NhctlCommand;
 import dev.nocalhost.plugin.intellij.commands.data.NhctlListApplication;
 import dev.nocalhost.plugin.intellij.commands.data.NhctlListApplicationOptions;
 import dev.nocalhost.plugin.intellij.topic.NocalhostTreeDataUpdateNotifier;
 import dev.nocalhost.plugin.intellij.topic.NocalhostTreeUiUpdateNotifier;
+import dev.nocalhost.plugin.intellij.utils.KubeConfigUtil;
 
 public class DevSpaceTreeAutoRefreshListener implements AppLifecycleListener {
     private static final Logger LOG = Logger.getInstance(DevSpaceTreeAutoRefreshListener.class);
@@ -64,15 +65,22 @@ public class DevSpaceTreeAutoRefreshListener implements AppLifecycleListener {
             final NocalhostApi nocalhostApi = ServiceManager.getService(NocalhostApi.class);
             final NhctlCommand nhctlCommand = ServiceManager.getService(NhctlCommand.class);
 
+            List<ServiceAccount> serviceAccounts = nocalhostApi.listServiceAccount();
             List<Application> applications = nocalhostApi.listApplications();
-            List<DevSpace> devSpaces = nocalhostApi.listDevSpaces();
             List<NhctlListApplication> nhctlListApplications = Lists.newArrayList();
-            for (DevSpace devSpace : devSpaces) {
-                nhctlListApplications.addAll(nhctlCommand.listApplication(new NhctlListApplicationOptions(devSpace)));
+            for (ServiceAccount serviceAccount : serviceAccounts) {
+                if (serviceAccount.isPrivilege()) {
+                    // TODO: get
+                } else {
+                    for (ServiceAccount.Namespace namespace : serviceAccount.getNamespaces()) {
+                        String kubeConfig = KubeConfigUtil.kubeConfigPath(serviceAccount).toString();
+                        nhctlListApplications.addAll(nhctlCommand.listApplication(new NhctlListApplicationOptions(kubeConfig, namespace.getNamespace())));
+                    }
+                }
             }
             ApplicationManager.getApplication().getMessageBus().syncPublisher(
                     NocalhostTreeUiUpdateNotifier.NOCALHOST_TREE_UI_UPDATE_NOTIFIER_TOPIC
-            ).action(devSpaces, applications, nhctlListApplications);
+            ).action(serviceAccounts, applications, nhctlListApplications);
         } catch (Exception e) {
             LOG.error(e);
         } finally {

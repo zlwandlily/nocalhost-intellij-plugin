@@ -84,6 +84,7 @@ public class NocalhostApi {
         }
     }
 
+    @Deprecated
     public List<DevSpace> listDevSpaces() throws IOException, NocalhostApiException {
         final NocalhostSettings nocalhostSettings = ServiceManager.getService(NocalhostSettings.class);
 

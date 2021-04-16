@@ -4,7 +4,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 
 import dev.nocalhost.plugin.intellij.api.data.Application;
-import dev.nocalhost.plugin.intellij.api.data.DevSpace;
+import dev.nocalhost.plugin.intellij.api.data.ServiceAccount;
 import dev.nocalhost.plugin.intellij.commands.data.KubeResource;
 import dev.nocalhost.plugin.intellij.commands.data.NhctlDescribeService;
 import lombok.AllArgsConstructor;
@@ -55,7 +55,7 @@ public class ResourceNode extends DefaultMutableTreeNode {
         return ((ApplicationNode) node).getApplication();
     }
 
-    public DevSpace devSpace() {
+    public String namespace() {
         TreeNode node = this;
         for (int i = 0; i < 4; i++) {
             if (node != null) {
@@ -64,7 +64,31 @@ public class ResourceNode extends DefaultMutableTreeNode {
                 return null;
             }
         }
-        return ((DevSpaceNode) node).getDevSpace();
+        return ((NameSpaceNode) node).getNamespace();
+    }
+
+    public String kubeConfig() {
+        TreeNode node = this;
+        for (int i = 0; i < 4; i++) {
+            if (node != null) {
+                node = node.getParent();
+            } else {
+                return null;
+            }
+        }
+        return ((NameSpaceNode) node).getKubeConfig();
+    }
+
+    public ServiceAccount serviceAccount() {
+        TreeNode node = this;
+        for (int i = 0; i < 5; i++) {
+            if (node != null) {
+                node = node.getParent();
+            } else {
+                return null;
+            }
+        }
+        return ((ServiceAccountNode) node).getServiceAccount();
     }
 
     public boolean isDefaultResource() {
